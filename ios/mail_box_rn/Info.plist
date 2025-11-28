@@ -51,5 +51,28 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>signa.email</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>signaemail</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>phantom</string>
+		<string>solflare</string>
+		<string>metamask</string>
+		<string>rainbow</string>
+		<string>cbwallet</string>
+		<string>trust</string>
+		<string>wc</string>
+	</array>
 </dict>
 </plist>

@@ -1,10 +1,11 @@
 /**
  * Wallet configuration for React Native
  */
+import Config from 'react-native-config';
 
 // WalletConnect Project ID - get from https://cloud.walletconnect.com/
 // In React Native, environment variables are accessed via react-native-config
-export const WALLETCONNECT_PROJECT_ID = '';
+export const WALLETCONNECT_PROJECT_ID = Config.WALLETCONNECT_PROJECT_ID || '';
 
 // App metadata for WalletConnect
 export const APP_METADATA = {
@@ -12,6 +13,10 @@ export const APP_METADATA = {
   description: 'Web3 Email Client',
   url: 'https://signa.email',
   icons: ['https://signa.email/icon.png'],
+  redirect: {
+    native: 'signaemail://',
+    universal: 'https://signa.email/wc',
+  },
 };
 
 // Supported chains

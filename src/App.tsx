@@ -7,11 +7,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider, queryClient } from '@sudobility/lib';
+import { WalletConnectModal } from '@walletconnect/modal-react-native';
 
 import { RootNavigator } from './navigation/RootNavigator';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { WalletProvider } from './wallet';
+import { WalletProvider, WALLETCONNECT_PROJECT_ID, APP_METADATA } from './wallet';
 import { initializeDI } from './config/di';
 
 // Initialize dependency injection
@@ -40,6 +41,11 @@ export default function App(): React.JSX.Element {
           </ThemeProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
+      {/* WalletConnect Modal - must be outside other providers */}
+      <WalletConnectModal
+        projectId={WALLETCONNECT_PROJECT_ID}
+        providerMetadata={APP_METADATA}
+      />
     </GestureHandlerRootView>
   );
 }

@@ -15,6 +15,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { useWallet, SUPPORTED_WALLETS } from '../../wallet';
 import type { WalletType } from '../../wallet';
 import { useAuth } from '../../context/AuthContext';
+import { useBiometrics, promptEnableBiometrics } from '../../utils/useBiometrics';
 
 type WalletTab = 'ethereum' | 'solana';
 
@@ -47,6 +48,7 @@ export function ConnectWalletScreen(): React.JSX.Element {
   } = useWallet();
 
   const { connect: authConnect, authenticate } = useAuth();
+  const biometrics = useBiometrics();
 
   // Sync wallet error to local error state
   useEffect(() => {
@@ -54,6 +56,17 @@ export function ConnectWalletScreen(): React.JSX.Element {
       setError(walletError);
     }
   }, [walletError]);
+
+  // Prompt to enable biometrics when wallet is connected
+  useEffect(() => {
+    if (address && biometrics.isAvailable && !biometrics.isEnrolled) {
+      // Slight delay to let the UI settle
+      const timer = setTimeout(() => {
+        promptEnableBiometrics(biometrics);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [address, biometrics]);
 
   // When signed data is available, authenticate
   useEffect(() => {
@@ -98,6 +111,20 @@ export function ConnectWalletScreen(): React.JSX.Element {
     ReactNativeHapticFeedback.trigger('impactMedium');
     setError(null);
 
+    // Require biometric authentication if enabled
+    if (biometrics.shouldRequireBiometrics()) {
+      const authenticated = await biometrics.authenticate(
+        'Authenticate to sign the verification message'
+      );
+      if (!authenticated) {
+        // User cancelled or auth failed
+        if (biometrics.error) {
+          setError(biometrics.error);
+        }
+        return;
+      }
+    }
+
     const message = getSigningMessage();
     const result = await signMessage(message);
 
@@ -106,7 +133,7 @@ export function ConnectWalletScreen(): React.JSX.Element {
     } else {
       ReactNativeHapticFeedback.trigger('notificationError');
     }
-  }, [signMessage, getSigningMessage]);
+  }, [signMessage, getSigningMessage, biometrics]);
 
   const handleReset = useCallback(async () => {
     ReactNativeHapticFeedback.trigger('impactLight');

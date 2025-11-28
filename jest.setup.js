@@ -65,6 +65,29 @@ jest.mock('react-native-haptic-feedback', () => ({
   trigger: jest.fn(),
 }));
 
+// Mock react-native-biometrics
+jest.mock('react-native-biometrics', () => {
+  const BiometryTypes = {
+    FaceID: 'FaceID',
+    TouchID: 'TouchID',
+    Biometrics: 'Biometrics',
+  };
+
+  return {
+    __esModule: true,
+    default: jest.fn(() => ({
+      isSensorAvailable: jest.fn(() =>
+        Promise.resolve({ available: false, biometryType: null })
+      ),
+      biometricKeysExist: jest.fn(() => Promise.resolve({ keysExist: false })),
+      createKeys: jest.fn(() => Promise.resolve({ publicKey: 'mock-public-key' })),
+      deleteKeys: jest.fn(() => Promise.resolve()),
+      simplePrompt: jest.fn(() => Promise.resolve({ success: true })),
+    })),
+    BiometryTypes,
+  };
+});
+
 // Mock react-native-config
 jest.mock('react-native-config', () => ({}));
 
@@ -73,6 +96,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(() => Promise.resolve()),
   getItem: jest.fn(() => Promise.resolve(null)),
   removeItem: jest.fn(() => Promise.resolve()),
+  multiRemove: jest.fn(() => Promise.resolve()),
   clear: jest.fn(() => Promise.resolve()),
   getAllKeys: jest.fn(() => Promise.resolve([])),
 }));
@@ -161,13 +185,32 @@ jest.mock('react-native-mmkv', () => ({
   })),
 }));
 
+// Mock @solana/web3.js
+jest.mock('@solana/web3.js', () => ({
+  PublicKey: jest.fn().mockImplementation((key) => ({
+    toBase58: () => typeof key === 'string' ? key : 'mockBase58Address',
+    toBytes: () => new Uint8Array(32),
+    toString: () => typeof key === 'string' ? key : 'mockBase58Address',
+  })),
+  Transaction: jest.fn(),
+  Connection: jest.fn(),
+  clusterApiUrl: jest.fn(() => 'https://api.mainnet-beta.solana.com'),
+}));
+
+// Mock bs58
+jest.mock('bs58', () => ({
+  encode: jest.fn((data) => 'mockEncodedSignature'),
+  decode: jest.fn((str) => new Uint8Array(32)),
+}));
+
 // Mock @walletconnect packages
 jest.mock('@walletconnect/modal-react-native', () => ({
-  WalletConnectModal: ({ children }) => children,
+  WalletConnectModal: () => null,
   useWalletConnectModal: () => ({
-    open: jest.fn(),
+    open: jest.fn(() => Promise.resolve()),
     close: jest.fn(),
     isOpen: false,
+    isConnected: false,
     provider: null,
   }),
 }));
@@ -176,6 +219,23 @@ jest.mock('@walletconnect/web3wallet', () => ({
   Web3Wallet: {
     init: jest.fn(),
   },
+}));
+
+// Mock @solana-mobile/mobile-wallet-adapter-protocol-web3js
+jest.mock('@solana-mobile/mobile-wallet-adapter-protocol-web3js', () => ({
+  transact: jest.fn((callback) => callback({
+    authorize: jest.fn(() => Promise.resolve({
+      accounts: [{ address: new Uint8Array(32).fill(1) }],
+      auth_token: 'mock-auth-token',
+    })),
+    reauthorize: jest.fn(() => Promise.resolve({
+      auth_token: 'mock-auth-token-renewed',
+    })),
+    deauthorize: jest.fn(() => Promise.resolve()),
+    signMessages: jest.fn(() => Promise.resolve([new Uint8Array(64).fill(0)])),
+    signTransactions: jest.fn((params) => Promise.resolve(params.transactions)),
+  })),
+  Web3MobileWallet: {},
 }));
 
 // Mock @sudobility/di_rn

@@ -5,11 +5,27 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
 } from 'react';
 import { Linking, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useWalletConnectModal } from '@walletconnect/modal-react-native';
+import { PublicKey } from '@solana/web3.js';
+import {
+  transact,
+  Web3MobileWallet,
+} from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import bs58 from 'bs58';
+
 import type { ChainType, WalletType } from './config';
-import { SUPPORTED_WALLETS } from './config';
+import { SUPPORTED_WALLETS, WALLETCONNECT_PROJECT_ID } from './config';
+
+// Solana app identity for MWA
+const SOLANA_APP_IDENTITY = {
+  name: 'Signa Email',
+  uri: 'https://signa.email',
+  icon: 'https://signa.email/icon.png',
+};
 
 // Storage keys
 const WALLET_STORAGE_KEY = '@signa_wallet';
@@ -69,17 +85,25 @@ function generateNonce(): string {
 /**
  * WalletProvider - Manages wallet connection state for React Native
  *
- * For production, this would integrate with:
- * - WalletConnect v2 for cross-wallet support
- * - MetaMask Mobile SDK for direct MetaMask connection
- * - Phantom SDK for Solana wallet connection
- *
- * Current implementation provides the interface with simulated connections
- * for development and testing purposes.
+ * Integrates with:
+ * - WalletConnect v2 for cross-wallet EVM support
+ * - MetaMask deep links for direct MetaMask connection
+ * - Solana Mobile Wallet Adapter for Phantom/Solflare
  */
 export function WalletProvider({ children }: WalletProviderProps): React.JSX.Element {
   const [state, setState] = useState<WalletState>(initialState);
   const [signedData, setSignedData] = useState<SignedData | null>(null);
+
+  // Solana auth token for reauthorization
+  const solanaAuthTokenRef = useRef<string | null>(null);
+
+  // WalletConnect modal hook
+  const {
+    open: openWalletConnect,
+    isOpen: isWalletConnectOpen,
+    provider: wcProvider,
+    isConnected: isWalletConnectConnected,
+  } = useWalletConnectModal();
 
   // Load saved wallet state on mount
   useEffect(() => {
@@ -115,6 +139,48 @@ export function WalletProvider({ children }: WalletProviderProps): React.JSX.Ele
     loadSavedWallet();
   }, []);
 
+  // Sync WalletConnect connection state
+  useEffect(() => {
+    const syncWalletConnectState = async () => {
+      if (wcProvider && isWalletConnectConnected) {
+        try {
+          const accounts = await wcProvider.request({ method: 'eth_accounts' }) as string[];
+
+          if (accounts[0]) {
+            const address = accounts[0];
+            const walletData = {
+              address,
+              chainType: 'evm' as ChainType,
+              walletType: 'walletconnect' as WalletType,
+            };
+
+            await AsyncStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(walletData));
+
+            setState((prev) => ({
+              ...prev,
+              ...walletData,
+              isConnecting: false,
+              error: null,
+            }));
+          }
+        } catch (error) {
+          console.error('[WalletProvider] Failed to sync WalletConnect state:', error);
+        }
+      }
+    };
+
+    syncWalletConnectState();
+  }, [wcProvider, isWalletConnectConnected]);
+
+  // Handle WalletConnect modal close without connection
+  useEffect(() => {
+    if (!isWalletConnectOpen && state.isConnecting && state.walletType === 'walletconnect') {
+      if (!isWalletConnectConnected) {
+        setState((prev) => ({ ...prev, isConnecting: false }));
+      }
+    }
+  }, [isWalletConnectOpen, state.isConnecting, state.walletType, isWalletConnectConnected]);
+
   /**
    * Generate the message to be signed for authentication
    */
@@ -130,84 +196,27 @@ This signature proves you own this wallet and will not trigger any blockchain tr
   }, []);
 
   /**
-   * Connect to a wallet
+   * Connect via WalletConnect
    */
-  const connect = useCallback(async (walletType: WalletType): Promise<boolean> => {
-    setState((prev) => ({ ...prev, isConnecting: true, error: null }));
+  const connectWalletConnect = useCallback(async (): Promise<boolean> => {
+    if (!WALLETCONNECT_PROJECT_ID) {
+      Alert.alert(
+        'Configuration Error',
+        'WalletConnect Project ID is not configured. Please add it to your .env file.'
+      );
+      return false;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      isConnecting: true,
+      walletType: 'walletconnect',
+      error: null,
+    }));
 
     try {
-      const walletInfo = SUPPORTED_WALLETS.find((w) => w.type === walletType);
-      if (!walletInfo) {
-        throw new Error(`Unknown wallet type: ${walletType}`);
-      }
-
-      // Check if wallet app is installed (for deep link wallets)
-      if (walletInfo.deepLink) {
-        const deepLink =
-          Platform.OS === 'ios'
-            ? walletInfo.deepLink.ios
-            : walletInfo.deepLink.android;
-
-        const canOpen = await Linking.canOpenURL(deepLink);
-        if (!canOpen) {
-          // Wallet not installed - show install prompt
-          Alert.alert(
-            `${walletInfo.name} Not Installed`,
-            `Please install ${walletInfo.name} to continue.`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Install',
-                onPress: () => {
-                  // Open app store link
-                  const storeUrl =
-                    Platform.OS === 'ios'
-                      ? `https://apps.apple.com/search?term=${walletInfo.name}`
-                      : `https://play.google.com/store/search?q=${walletInfo.name}`;
-                  Linking.openURL(storeUrl);
-                },
-              },
-            ]
-          );
-          setState((prev) => ({ ...prev, isConnecting: false }));
-          return false;
-        }
-      }
-
-      // For WalletConnect, we would initialize the WC client here
-      // For direct wallet connections, we would use their respective SDKs
-      // For now, simulate the connection
-
-      // In production, this would:
-      // 1. For WalletConnect: Display QR modal or deep link to wallet
-      // 2. For MetaMask: Use MetaMask SDK to establish connection
-      // 3. For Phantom: Use Phantom deep links with connect action
-
-      // Simulated connection for development
-      // TODO: Replace with actual wallet SDK integration
-      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-
-      // Generate a simulated address based on chain type
-      const simulatedAddress =
-        walletInfo.chainType === 'solana'
-          ? `${generateNonce().slice(0, 8)}...${generateNonce().slice(0, 4)}` // Solana-style
-          : `0x${generateNonce().slice(0, 8)}...${generateNonce().slice(0, 4)}`; // EVM-style
-
-      const walletData = {
-        address: simulatedAddress,
-        chainType: walletInfo.chainType,
-        walletType: walletType,
-      };
-
-      // Save to storage
-      await AsyncStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(walletData));
-
-      setState((prev) => ({
-        ...prev,
-        ...walletData,
-        isConnecting: false,
-      }));
-
+      await openWalletConnect();
+      // Connection state will be updated via the useEffect above
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Connection failed';
@@ -218,7 +227,208 @@ This signature proves you own this wallet and will not trigger any blockchain tr
       }));
       return false;
     }
+  }, [openWalletConnect]);
+
+  /**
+   * Connect via MetaMask deep link
+   */
+  const connectMetaMask = useCallback(async (): Promise<boolean> => {
+    setState((prev) => ({
+      ...prev,
+      isConnecting: true,
+      walletType: 'metamask',
+      error: null,
+    }));
+
+    try {
+      // Check if MetaMask is installed
+      const metamaskDeepLink = Platform.OS === 'ios' ? 'metamask://' : 'metamask://';
+      const canOpen = await Linking.canOpenURL(metamaskDeepLink);
+
+      if (!canOpen) {
+        Alert.alert(
+          'MetaMask Not Installed',
+          'Please install MetaMask to continue.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Install',
+              onPress: () => {
+                const storeUrl =
+                  Platform.OS === 'ios'
+                    ? 'https://apps.apple.com/app/metamask/id1438144202'
+                    : 'https://play.google.com/store/apps/details?id=io.metamask';
+                Linking.openURL(storeUrl);
+              },
+            },
+          ]
+        );
+        setState((prev) => ({ ...prev, isConnecting: false }));
+        return false;
+      }
+
+      // For MetaMask, we use WalletConnect under the hood but open MetaMask directly
+      // This triggers MetaMask to open and connect via WalletConnect
+      await openWalletConnect();
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      setState((prev) => ({
+        ...prev,
+        isConnecting: false,
+        error: errorMessage,
+      }));
+      return false;
+    }
+  }, [openWalletConnect]);
+
+  /**
+   * Connect via Solana Mobile Wallet Adapter (Phantom, Solflare, etc.)
+   */
+  const connectSolana = useCallback(async (walletType: WalletType): Promise<boolean> => {
+    setState((prev) => ({
+      ...prev,
+      isConnecting: true,
+      walletType,
+      error: null,
+    }));
+
+    try {
+      // Check if any Solana wallet is installed
+      const wallets = [
+        { scheme: 'phantom://', name: 'Phantom' },
+        { scheme: 'solflare://', name: 'Solflare' },
+      ];
+
+      let hasWallet = false;
+      for (const wallet of wallets) {
+        const canOpen = await Linking.canOpenURL(wallet.scheme);
+        if (canOpen) {
+          hasWallet = true;
+          break;
+        }
+      }
+
+      if (!hasWallet) {
+        Alert.alert(
+          'No Solana Wallet Found',
+          'Please install Phantom or Solflare to continue.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Install Phantom',
+              onPress: () => {
+                const storeUrl =
+                  Platform.OS === 'ios'
+                    ? 'https://apps.apple.com/app/phantom-solana-wallet/id1598432977'
+                    : 'https://play.google.com/store/apps/details?id=app.phantom';
+                Linking.openURL(storeUrl);
+              },
+            },
+          ]
+        );
+        setState((prev) => ({ ...prev, isConnecting: false }));
+        return false;
+      }
+
+      // Use Solana Mobile Wallet Adapter to connect
+      const result = await transact(async (wallet: Web3MobileWallet) => {
+        const authResult = await wallet.authorize({
+          cluster: 'mainnet-beta',
+          identity: SOLANA_APP_IDENTITY,
+        });
+
+        return {
+          publicKey: authResult.accounts[0]?.address,
+          authToken: authResult.auth_token,
+        };
+      });
+
+      if (result.publicKey) {
+        const publicKey = new PublicKey(result.publicKey);
+        const address = publicKey.toBase58();
+
+        // Save auth token for reauthorization
+        solanaAuthTokenRef.current = result.authToken;
+
+        const walletData = {
+          address,
+          chainType: 'solana' as ChainType,
+          walletType,
+          solanaAuthToken: result.authToken,
+        };
+
+        await AsyncStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(walletData));
+
+        setState((prev) => ({
+          ...prev,
+          address,
+          chainType: 'solana',
+          walletType,
+          isConnecting: false,
+          error: null,
+        }));
+
+        return true;
+      }
+
+      throw new Error('No account returned from wallet');
+    } catch (error) {
+      console.error('[WalletProvider] Solana connect error:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+
+      // Handle user rejection silently
+      if (errorMessage.includes('cancelled') || errorMessage.includes('rejected')) {
+        setState((prev) => ({ ...prev, isConnecting: false }));
+        return false;
+      }
+
+      setState((prev) => ({
+        ...prev,
+        isConnecting: false,
+        error: errorMessage,
+      }));
+      return false;
+    }
   }, []);
+
+  /**
+   * Connect to a wallet
+   */
+  const connect = useCallback(
+    async (walletType: WalletType): Promise<boolean> => {
+      const walletInfo = SUPPORTED_WALLETS.find((w) => w.type === walletType);
+      if (!walletInfo) {
+        setState((prev) => ({
+          ...prev,
+          error: `Unknown wallet type: ${walletType}`,
+        }));
+        return false;
+      }
+
+      // Route to appropriate connection method
+      switch (walletType) {
+        case 'walletconnect':
+          return connectWalletConnect();
+        case 'metamask':
+          return connectMetaMask();
+        case 'coinbase':
+          // Coinbase uses WalletConnect
+          return connectWalletConnect();
+        case 'phantom':
+        case 'solflare':
+          return connectSolana(walletType);
+        default:
+          setState((prev) => ({
+            ...prev,
+            error: `Wallet type ${walletType} not yet supported`,
+          }));
+          return false;
+      }
+    },
+    [connectWalletConnect, connectMetaMask, connectSolana]
+  );
 
   /**
    * Sign a message with the connected wallet
@@ -236,20 +446,46 @@ This signature proves you own this wallet and will not trigger any blockchain tr
       setState((prev) => ({ ...prev, isSigning: true, error: null }));
 
       try {
-        // In production, this would:
-        // 1. For EVM: Use signMessage from wallet provider
-        // 2. For Solana: Use signMessage from Phantom SDK
+        let signature: string;
 
-        // Simulated signing for development
-        // TODO: Replace with actual wallet SDK signing
-        await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+        if (state.chainType === 'evm' && wcProvider) {
+          // Sign with WalletConnect provider (EVM)
+          signature = await wcProvider.request({
+            method: 'personal_sign',
+            params: [message, state.address],
+          }) as string;
+        } else if (state.chainType === 'solana' && solanaAuthTokenRef.current) {
+          // Sign with Solana Mobile Wallet Adapter
+          const messageBytes = new TextEncoder().encode(message);
 
-        // Generate a simulated signature
-        const simulatedSignature = `0x${generateNonce()}${generateNonce()}`;
+          const result = await transact(async (wallet: Web3MobileWallet) => {
+            // Reauthorize first
+            const authResult = await wallet.reauthorize({
+              auth_token: solanaAuthTokenRef.current!,
+              identity: SOLANA_APP_IDENTITY,
+            });
+
+            // Update auth token
+            solanaAuthTokenRef.current = authResult.auth_token;
+
+            // Sign the message - addresses should be base58 strings
+            const signResult = await wallet.signMessages({
+              addresses: [state.address!],
+              payloads: [messageBytes],
+            });
+
+            return signResult[0];
+          });
+
+          // Convert signature to base58
+          signature = bs58.encode(Buffer.from(result));
+        } else {
+          throw new Error('No wallet provider available for signing');
+        }
 
         const signed: SignedData = {
-          signature: simulatedSignature,
-          message: message,
+          signature,
+          message,
           timestamp: Date.now(),
         };
 
@@ -270,7 +506,7 @@ This signature proves you own this wallet and will not trigger any blockchain tr
         return null;
       }
     },
-    [state.address, state.walletType]
+    [state.address, state.walletType, state.chainType, wcProvider]
   );
 
   /**
@@ -278,6 +514,27 @@ This signature proves you own this wallet and will not trigger any blockchain tr
    */
   const disconnect = useCallback(async (): Promise<void> => {
     try {
+      // Disconnect WalletConnect if connected (EVM)
+      if (wcProvider) {
+        try {
+          await wcProvider.disconnect();
+        } catch (error) {
+          console.warn('Failed to disconnect WalletConnect:', error);
+        }
+      }
+
+      // Deauthorize Solana wallet if connected
+      if (solanaAuthTokenRef.current) {
+        try {
+          await transact(async (wallet: Web3MobileWallet) => {
+            await wallet.deauthorize({ auth_token: solanaAuthTokenRef.current! });
+          });
+        } catch (error) {
+          console.warn('Failed to deauthorize Solana wallet:', error);
+        }
+        solanaAuthTokenRef.current = null;
+      }
+
       // Clear storage
       await AsyncStorage.multiRemove([WALLET_STORAGE_KEY, AUTH_STORAGE_KEY]);
 
@@ -287,7 +544,7 @@ This signature proves you own this wallet and will not trigger any blockchain tr
     } catch (error) {
       console.error('Failed to disconnect:', error);
     }
-  }, []);
+  }, [wcProvider]);
 
   const value = useMemo(
     () => ({
