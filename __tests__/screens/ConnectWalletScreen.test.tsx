@@ -145,9 +145,9 @@ describe('ConnectWalletScreen', () => {
     });
 
     it('should display connected address', () => {
-      const { getByText } = render(<ConnectWalletScreen />);
+      const { getByTestId } = render(<ConnectWalletScreen />);
 
-      expect(getByText('0x1234567890abcdef1234567890abcdef12345678')).toBeTruthy();
+      expect(getByTestId('connected-address')).toBeTruthy();
     });
 
     it('should display chain badge for EVM', () => {

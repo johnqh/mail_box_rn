@@ -151,14 +151,19 @@ export function ConnectWalletScreen(): React.JSX.Element {
   ) => (
     <TouchableOpacity
       key={wallet.type}
+      testID={`wallet-button-${wallet.type}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Connect with ${wallet.name}`}
+      accessibilityHint={`Opens ${wallet.name} to connect your wallet`}
+      accessibilityState={{ disabled: isConnecting }}
       style={[styles.walletButton, { backgroundColor: colors.card }]}
       onPress={onPress}
       disabled={isConnecting}
       activeOpacity={0.7}
     >
-      <Text style={styles.walletIcon}>{wallet.icon}</Text>
+      <Text style={styles.walletIcon} accessibilityElementsHidden>{wallet.icon}</Text>
       <Text style={[styles.walletName, { color: colors.text }]}>{wallet.name}</Text>
-      {isConnecting && <ActivityIndicator size="small" color={colors.primary} />}
+      {isConnecting && <ActivityIndicator size="small" color={colors.primary} accessibilityLabel="Connecting" />}
     </TouchableOpacity>
   );
 
@@ -168,6 +173,11 @@ export function ConnectWalletScreen(): React.JSX.Element {
       {/* Tab Selector */}
       <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
         <TouchableOpacity
+          testID="tab-ethereum"
+          accessibilityRole="tab"
+          accessibilityLabel="Ethereum wallets"
+          accessibilityState={{ selected: activeTab === 'ethereum' }}
+          accessibilityHint="Shows Ethereum wallet options"
           style={[
             styles.tab,
             activeTab === 'ethereum' && {
@@ -186,6 +196,11 @@ export function ConnectWalletScreen(): React.JSX.Element {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
+          testID="tab-solana"
+          accessibilityRole="tab"
+          accessibilityLabel="Solana wallets"
+          accessibilityState={{ selected: activeTab === 'solana' }}
+          accessibilityHint="Shows Solana wallet options"
           style={[
             styles.tab,
             activeTab === 'solana' && {
@@ -221,11 +236,16 @@ export function ConnectWalletScreen(): React.JSX.Element {
   // Sign Step
   const renderSignStep = () => (
     <View style={styles.signContainer}>
-      <View style={[styles.addressCard, { backgroundColor: colors.card }]}>
+      <View
+        testID="connected-address-card"
+        style={[styles.addressCard, { backgroundColor: colors.card }]}
+        accessibilityRole="text"
+        accessibilityLabel={`Connected wallet address: ${address}`}
+      >
         <Text style={[styles.addressLabel, { color: colors.textSecondary }]}>
           Connected Wallet
         </Text>
-        <Text style={[styles.addressValue, { color: colors.text }]}>{address}</Text>
+        <Text testID="connected-address" style={[styles.addressValue, { color: colors.text }]}>{address}</Text>
         <View
           style={[
             styles.chainBadge,
@@ -239,19 +259,28 @@ export function ConnectWalletScreen(): React.JSX.Element {
       </View>
 
       <TouchableOpacity
+        testID="sign-button"
+        accessibilityRole="button"
+        accessibilityLabel={isSigning ? 'Signing message' : 'Sign message to verify'}
+        accessibilityHint="Signs a message to verify wallet ownership"
+        accessibilityState={{ disabled: isSigning, busy: isSigning }}
         style={[styles.signButton, { backgroundColor: colors.primary }]}
         onPress={handleSignMessage}
         disabled={isSigning}
         activeOpacity={0.8}
       >
         {isSigning ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color="#ffffff" accessibilityLabel="Signing in progress" />
         ) : (
           <Text style={styles.signButtonText}>Sign Message to Verify</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity
+        testID="reset-wallet-button"
+        accessibilityRole="button"
+        accessibilityLabel="Use different wallet"
+        accessibilityHint="Disconnects current wallet and returns to wallet selection"
         style={styles.resetButton}
         onPress={handleReset}
         activeOpacity={0.7}

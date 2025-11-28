@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,91 @@ interface EmailItem {
   isRead: boolean;
   isStarred: boolean;
 }
+
+// Constants for FlatList optimization
+const EMAIL_ITEM_HEIGHT = 90; // Approximate height for getItemLayout
+const WINDOW_SIZE = 10;
+const MAX_TO_RENDER_PER_BATCH = 10;
+const UPDATE_CELL_BATCH_PERIOD = 50;
+
+/**
+ * Memoized Email Item Component for better FlatList performance
+ */
+interface EmailItemProps {
+  item: EmailItem;
+  onPress: (item: EmailItem) => void;
+  colors: {
+    border: string;
+    read: string;
+    unread: string;
+    textSecondary: string;
+    primary: string;
+  };
+}
+
+const EmailItemComponent = memo<EmailItemProps>(
+  ({ item, onPress, colors }) => (
+    <TouchableOpacity
+      style={[styles.emailItem, { borderBottomColor: colors.border }]}
+      onPress={() => onPress(item)}
+      activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={`Email from ${item.from}. Subject: ${item.subject}. ${item.isRead ? 'Read' : 'Unread'}${item.isStarred ? ', Starred' : ''}`}
+      accessibilityHint="Opens email details"
+      accessibilityState={{ selected: !item.isRead }}
+    >
+      <View style={styles.emailContent}>
+        <View style={styles.emailHeader}>
+          <Text
+            style={[
+              styles.fromText,
+              { color: item.isRead ? colors.read : colors.unread },
+              !item.isRead && styles.unreadText,
+            ]}
+            numberOfLines={1}
+            accessibilityElementsHidden
+          >
+            {item.from}
+          </Text>
+          <Text style={[styles.dateText, { color: colors.textSecondary }]} accessibilityElementsHidden>
+            {item.date}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.subjectText,
+            { color: item.isRead ? colors.read : colors.unread },
+            !item.isRead && styles.unreadText,
+          ]}
+          numberOfLines={1}
+          accessibilityElementsHidden
+        >
+          {item.subject}
+        </Text>
+        <Text
+          style={[styles.previewText, { color: colors.textSecondary }]}
+          numberOfLines={2}
+          accessibilityElementsHidden
+        >
+          {item.preview}
+        </Text>
+      </View>
+      {item.isStarred && <Text style={styles.starIcon} accessibilityElementsHidden>⭐</Text>}
+      {!item.isRead && (
+        <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} accessibilityElementsHidden />
+      )}
+    </TouchableOpacity>
+  ),
+  (prevProps, nextProps) => {
+    // Custom comparison for better memoization
+    return (
+      prevProps.item.id === nextProps.item.id &&
+      prevProps.item.isRead === nextProps.item.isRead &&
+      prevProps.item.isStarred === nextProps.item.isStarred
+    );
+  }
+);
 
 // Mock data for development
 const MOCK_EMAILS: EmailItem[] = [
@@ -219,50 +304,37 @@ export function MailListScreen(): React.JSX.Element {
     navigation.navigate('Compose');
   }, [navigation]);
 
-  const renderEmailItem = ({ item }: { item: EmailItem }) => (
-    <TouchableOpacity
-      style={[styles.emailItem, { borderBottomColor: colors.border }]}
-      onPress={() => handleEmailPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.emailContent}>
-        <View style={styles.emailHeader}>
-          <Text
-            style={[
-              styles.fromText,
-              { color: item.isRead ? colors.read : colors.unread },
-              !item.isRead && styles.unreadText,
-            ]}
-            numberOfLines={1}
-          >
-            {item.from}
-          </Text>
-          <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-            {item.date}
-          </Text>
-        </View>
-        <Text
-          style={[
-            styles.subjectText,
-            { color: item.isRead ? colors.read : colors.unread },
-            !item.isRead && styles.unreadText,
-          ]}
-          numberOfLines={1}
-        >
-          {item.subject}
-        </Text>
-        <Text
-          style={[styles.previewText, { color: colors.textSecondary }]}
-          numberOfLines={2}
-        >
-          {item.preview}
-        </Text>
-      </View>
-      {item.isStarred && <Text style={styles.starIcon}>⭐</Text>}
-      {!item.isRead && (
-        <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-      )}
-    </TouchableOpacity>
+  // Memoized colors object for EmailItemComponent
+  const itemColors = useMemo(
+    () => ({
+      border: colors.border,
+      read: colors.read,
+      unread: colors.unread,
+      textSecondary: colors.textSecondary,
+      primary: colors.primary,
+    }),
+    [colors.border, colors.read, colors.unread, colors.textSecondary, colors.primary]
+  );
+
+  const renderEmailItem = useCallback(
+    ({ item }: { item: EmailItem }) => (
+      <EmailItemComponent
+        item={item}
+        onPress={handleEmailPress}
+        colors={itemColors}
+      />
+    ),
+    [handleEmailPress, itemColors]
+  );
+
+  // getItemLayout for better FlatList performance (enables scroll to index)
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<EmailItem> | null | undefined, index: number) => ({
+      length: EMAIL_ITEM_HEIGHT,
+      offset: EMAIL_ITEM_HEIGHT * index,
+      index,
+    }),
+    []
   );
 
   const renderFooter = () => {
@@ -320,11 +392,12 @@ export function MailListScreen(): React.JSX.Element {
         </TouchableOpacity>
       </View>
 
-      {/* Email List */}
+      {/* Email List - Optimized FlatList */}
       <FlatList
         data={emailsWithLocalState}
         keyExtractor={(item) => item.id}
         renderItem={renderEmailItem}
+        getItemLayout={getItemLayout}
         refreshControl={
           <RefreshControl
             refreshing={isLoading && emailsWithLocalState.length > 0}
@@ -342,6 +415,12 @@ export function MailListScreen(): React.JSX.Element {
         ListEmptyComponent={renderEmpty}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
+        // Performance optimizations
+        windowSize={WINDOW_SIZE}
+        maxToRenderPerBatch={MAX_TO_RENDER_PER_BATCH}
+        updateCellsBatchingPeriod={UPDATE_CELL_BATCH_PERIOD}
+        removeClippedSubviews={true}
+        initialNumToRender={15}
       />
     </SafeAreaView>
   );
