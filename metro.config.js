@@ -1,4 +1,8 @@
+const path = require('path');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+
+// Path to the local di_rn package
+const diRnPath = path.resolve(__dirname, '../di_rn');
 
 /**
  * Metro configuration
@@ -6,6 +10,16 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
  *
  * @type {import('@react-native/metro-config').MetroConfig}
  */
-const config = {};
+const config = {
+  watchFolders: [diRnPath],
+  resolver: {
+    nodeModulesPaths: [
+      path.resolve(__dirname, 'node_modules'),
+    ],
+    extraNodeModules: {
+      '@sudobility/di_rn': diRnPath,
+    },
+  },
+};
 
 module.exports = mergeConfig(getDefaultConfig(__dirname), config);

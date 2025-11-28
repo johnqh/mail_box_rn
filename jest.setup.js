@@ -177,3 +177,89 @@ jest.mock('@walletconnect/web3wallet', () => ({
     init: jest.fn(),
   },
 }));
+
+// Mock @sudobility/di_rn
+jest.mock(
+  '@sudobility/di_rn',
+  () => ({
+    initializeStorageService: jest.fn(),
+    initializeNetworkService: jest.fn(),
+    initializeAnalyticsClient: jest.fn(),
+    initializeNotificationService: jest.fn(),
+    initializeThemeService: jest.fn(),
+    initializeLoggerProvider: jest.fn(),
+    initializeNavigationService: jest.fn(),
+    resetStorageService: jest.fn(),
+    resetNetworkService: jest.fn(),
+    resetAnalyticsClient: jest.fn(),
+    resetNotificationService: jest.fn(),
+    resetThemeService: jest.fn(),
+    resetLoggerProvider: jest.fn(),
+    resetNavigationService: jest.fn(),
+    getNetworkClient: jest.fn(() => ({
+      get: jest.fn(),
+      post: jest.fn(),
+      put: jest.fn(),
+      delete: jest.fn(),
+    })),
+    rnAppConfig: {
+      wildDuckBackendUrl: 'https://api.signa.email',
+      devMode: true,
+    },
+    rnNetworkClient: {
+      get: jest.fn(),
+      post: jest.fn(),
+      put: jest.fn(),
+      delete: jest.fn(),
+    },
+  }),
+  { virtual: true }
+);
+
+// Mock @sudobility/lib
+jest.mock(
+  '@sudobility/lib',
+  () => ({
+    useMessages: jest.fn(() => ({
+      messages: [],
+      isLoading: false,
+      isSearching: false,
+      refresh: jest.fn(),
+      next: jest.fn(),
+      hasMore: false,
+      totalMessages: 0,
+      error: null,
+    })),
+    Message: {},
+  }),
+  { virtual: true }
+);
+
+// Mock @sudobility/types
+jest.mock(
+  '@sudobility/types',
+  () => ({
+    // Export empty object for types-only module
+  }),
+  { virtual: true }
+);
+
+// Mock @sudobility/components-rn
+jest.mock(
+  '@sudobility/components-rn',
+  () => ({
+    Button: 'Button',
+    Card: 'Card',
+    Text: 'Text',
+    Heading: 'Heading',
+    Input: 'Input',
+    Spinner: 'Spinner',
+    Alert: 'Alert',
+    Box: 'Box',
+    Flex: 'Flex',
+    Stack: 'Stack',
+    List: 'List',
+    cn: (...args) => args.filter(Boolean).join(' '),
+  }),
+  { virtual: true }
+);
