@@ -7,7 +7,12 @@
       "Bash(npx react-native bundle:*)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm install:*)",
+      "Bash(npm show:*)",
+      "Bash(cat:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

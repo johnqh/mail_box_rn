@@ -9,9 +9,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { MailListScreen, EmailDetailScreen, ComposeScreen } from '../screens/mail';
-import type { MailStackParamList, DrawerParamList } from './types';
+import type { MailStackParamList, DrawerParamList, RootStackParamList } from './types';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator<MailStackParamList>();
@@ -41,9 +43,10 @@ function MailStackNavigator(): React.JSX.Element {
 }
 
 // Custom Drawer Content
-function DrawerContent({ navigation }: DrawerContentComponentProps): React.JSX.Element {
+function DrawerContent({ navigation: drawerNavigation }: DrawerContentComponentProps): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const { address, chainType, disconnect } = useAuth();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const colors = {
     background: isDarkMode ? '#1c1c1e' : '#f2f2f7',
@@ -62,7 +65,12 @@ function DrawerContent({ navigation }: DrawerContentComponentProps): React.JSX.E
   ];
 
   const handleNavigate = (key: keyof DrawerParamList) => {
-    navigation.navigate(key);
+    drawerNavigation.navigate(key);
+  };
+
+  const handleSettingsPress = () => {
+    drawerNavigation.closeDrawer();
+    rootNavigation.navigate('Settings');
   };
 
   const handleLogout = () => {
@@ -113,7 +121,7 @@ function DrawerContent({ navigation }: DrawerContentComponentProps): React.JSX.E
       <View style={[styles.bottomSection, { borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => handleNavigate('Settings')}
+          onPress={handleSettingsPress}
         >
           <Text style={styles.menuIcon}>⚙️</Text>
           <Text style={[styles.menuLabel, { color: colors.text }]}>Settings</Text>
@@ -123,24 +131,6 @@ function DrawerContent({ navigation }: DrawerContentComponentProps): React.JSX.E
           <Text style={[styles.menuLabel, styles.disconnectText]}>Disconnect</Text>
         </TouchableOpacity>
       </View>
-    </View>
-  );
-}
-
-// Placeholder Settings Screen
-function SettingsScreen(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  const colors = {
-    background: isDarkMode ? '#000000' : '#ffffff',
-    text: isDarkMode ? '#ffffff' : '#000000',
-  };
-
-  return (
-    <View style={[styles.settingsContainer, { backgroundColor: colors.background }]}>
-      <Text style={[styles.settingsTitle, { color: colors.text }]}>Settings</Text>
-      <Text style={[styles.settingsText, { color: colors.text }]}>
-        Coming soon...
-      </Text>
     </View>
   );
 }
@@ -163,7 +153,6 @@ export function MailNavigator(): React.JSX.Element {
       <Drawer.Screen name="Drafts" component={MailStackNavigator} />
       <Drawer.Screen name="Starred" component={MailStackNavigator} />
       <Drawer.Screen name="Trash" component={MailStackNavigator} />
-      <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>
   );
 }
@@ -251,19 +240,5 @@ const styles = StyleSheet.create({
   },
   disconnectText: {
     color: '#FF3B30',
-  },
-  settingsContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  settingsTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  settingsText: {
-    fontSize: 16,
   },
 });

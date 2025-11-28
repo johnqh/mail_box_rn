@@ -20,13 +20,13 @@ export type DrawerParamList = {
   Drafts: NavigatorScreenParams<MailStackParamList>;
   Starred: NavigatorScreenParams<MailStackParamList>;
   Trash: NavigatorScreenParams<MailStackParamList>;
-  Settings: undefined;
 };
 
 // Root stack (auth + main app)
 export type RootStackParamList = {
-  ConnectWallet: undefined;
+  Auth: undefined;
   Main: NavigatorScreenParams<DrawerParamList>;
+  Settings: undefined;
 };
 
 // Mailbox types

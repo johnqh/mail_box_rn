@@ -231,6 +231,11 @@ jest.mock(
       error: null,
     })),
     Message: {},
+    QueryClientProvider: ({ children }) => children,
+    queryClient: {
+      clear: jest.fn(),
+      invalidateQueries: jest.fn(),
+    },
   }),
   { virtual: true }
 );
