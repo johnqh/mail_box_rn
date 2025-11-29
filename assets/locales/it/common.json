@@ -1,0 +1,71 @@
+{
+  "app": {
+    "name": "0xMail",
+    "tagline": "Decentralized Email for Web3"
+  },
+  "landing": {
+    "welcome": "Welcome to 0xMail",
+    "subtitle": "Your decentralized email powered by blockchain",
+    "connectWallet": "Connect Your Wallet",
+    "learnMore": "Learn More"
+  },
+  "wallet": {
+    "selectWallet": "Select Your Wallet",
+    "connectEVM": "Connect EVM Wallet",
+    "connectSolana": "Connect Solana Wallet",
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "disconnect": "Disconnect",
+    "signMessage": "Sign Message",
+    "signIn": "Sign In"
+  },
+  "mail": {
+    "inbox": "Inbox",
+    "sent": "Sent",
+    "drafts": "Drafts",
+    "spam": "Spam",
+    "trash": "Trash",
+    "compose": "Compose",
+    "reply": "Reply",
+    "replyAll": "Reply All",
+    "forward": "Forward",
+    "delete": "Delete",
+    "archive": "Archive",
+    "markRead": "Mark as Read",
+    "markUnread": "Mark as Unread",
+    "noEmails": "No emails yet",
+    "loading": "Loading emails..."
+  },
+  "accounts": {
+    "title": "Email Accounts",
+    "addAccount": "Add Account",
+    "selectAccount": "Select Account",
+    "settings": "Account Settings",
+    "noAccounts": "No accounts found"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "appearance": "Appearance",
+    "language": "Language",
+    "notifications": "Notifications",
+    "security": "Security",
+    "about": "About"
+  },
+  "biometrics": {
+    "authenticate": "Authenticate to access 0xMail",
+    "failed": "Authentication failed",
+    "retry": "Try Again",
+    "usePassword": "Use Password Instead"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "done": "Done",
+    "back": "Back",
+    "next": "Next"
+  }
+}

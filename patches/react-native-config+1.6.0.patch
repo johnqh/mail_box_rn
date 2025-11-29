@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-config/codegen/NativeConfigModule.js b/node_modules/react-native-config/codegen/NativeConfigModule.js
+index ace7612..e64a203 100644
+--- a/node_modules/react-native-config/codegen/NativeConfigModule.js
++++ b/node_modules/react-native-config/codegen/NativeConfigModule.js
+@@ -8,4 +8,4 @@ export interface Spec extends TurboModule {
+   |};
+ }
+ 
+-export default (TurboModuleRegistry.get<Spec>("RNCConfigModule"): ?Spec);
++export default (TurboModuleRegistry.get<Spec>("RNCConfig"): ?Spec);
+diff --git a/node_modules/react-native-config/index.js b/node_modules/react-native-config/index.js
+index 27da8f7..5533d6c 100644
+--- a/node_modules/react-native-config/index.js
++++ b/node_modules/react-native-config/index.js
+@@
+-"use strict";
+-
+-export const Config =
+-  require("./codegen/NativeConfigModule").default.getConfig().config;
+-export default Config;
++"use strict";
++
++const NativeConfigModule = require("./codegen/NativeConfigModule").default;
++
++const fallbackConfig = {};
++const Config =
++  NativeConfigModule?.getConfig?.().config ?? fallbackConfig;
++
++if (!NativeConfigModule) {
++  console.warn(
++    "[react-native-config] NativeConfigModule is not linked; returning empty config object."
++  );
++}
++
++export { Config };
++export default Config;
+diff --git a/node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDotEnv.m b/node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDotEnv.m
+index 04a2f3d..b5bfb43 100644
+--- a/node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDotEnv.m
++++ b/node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDotEnv.m
+@@ -1 +1 @@
+-  #define DOT_ENV @{  };
++  #define DOT_ENV @{ @"VITE_WILDDUCK_URL":@"https://wildduck.0xmail.box",@"VITE_INDEXER_URL":@"https://indexer.0xmail.box",@"VITE_WALLETCONNECT_PROJECT_ID":@"your_project_id_here",@"VITE_REVENUECAT_API_KEY":@"your_revenuecat_key_here",@"VITE_FIREBASE_API_KEY":@"your_firebase_api_key",@"VITE_FIREBASE_AUTH_DOMAIN":@"your-project.firebaseapp.com",@"VITE_FIREBASE_PROJECT_ID":@"your-project-id",@"VITE_FIREBASE_STORAGE_BUCKET":@"your-project.appspot.com",@"VITE_FIREBASE_MESSAGING_SENDER_ID":@"123456789",@"VITE_FIREBASE_APP_ID":@"1:123456789:ios:abc123",@"VITE_FIREBASE_MEASUREMENT_ID":@"G-XXXXXXXXXX",@"APP_ENV":@"production" };
+diff --git a/node_modules/react-native-config/ios/ReactNativeConfig/RNCConfigModule.mm b/node_modules/react-native-config/ios/ReactNativeConfig/RNCConfigModule.mm
+index 4064680..f71fffb 100644
+--- a/node_modules/react-native-config/ios/ReactNativeConfig/RNCConfigModule.mm
++++ b/node_modules/react-native-config/ios/ReactNativeConfig/RNCConfigModule.mm
+@@ -3,7 +3,7 @@
+ 
+ @implementation RNCConfigModule
+ 
+-RCT_EXPORT_MODULE()
++RCT_EXPORT_MODULE(RNCConfig)
+ RCT_EXTERN__BLOCKING_SYNCHRONOUS_METHOD(getConfig)
+ 
+ + (BOOL)requiresMainQueueSetup
